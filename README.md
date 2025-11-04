@@ -8,6 +8,8 @@ This tool is designed to help exifltration of files from remote desktops which b
 
 During testing we have achieved a data transfer rate of 50KBs during the flashing phase, it is possible to run this tool at a higher rate with higher power machines.
 
+**Note: This tool rapidly flashes coloured squares on a screen, if you suffer from a condition such as epilepsy, this may be unsuitable**
+
 ## Usage
 
 ### Overview
