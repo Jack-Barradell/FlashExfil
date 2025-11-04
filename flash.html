@@ -1,0 +1,114 @@
+<html>
+    <head>
+
+    </head>
+    <body>
+        <label for="file">Choose a file</label>
+        <input type="file" id="file" name="file"/>
+        <button id="go" onclick="go()" style="margin-right:20px">GO!</button>
+        <span id="md5holder">SHA256: </span>
+        <br />
+        <canvas id="grid" width="500" height="500" style="margin-top:10px;margin-left:5px"></canvas>
+
+        <script>
+
+            const COLUMN_COUNT = 70;
+            const ROW_COUNT = 45;
+            const CELL_SIZE = 14;
+            const MS_DELAY = 45; 
+            const FRAMES_PER_GRID = 3;
+
+            const fileInput = document.getElementById("file");
+            const goInput = document.getElementById("go");
+            const canvas = document.getElementById("grid");
+
+            canvas.width = COLUMN_COUNT * CELL_SIZE;
+            canvas.height = ROW_COUNT * CELL_SIZE;
+
+            const context = canvas.getContext("2d");
+            
+            context.rect(0, 0, COLUMN_COUNT * CELL_SIZE, ROW_COUNT * CELL_SIZE);
+            context.stroke();
+
+            const charSet = [
+                'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+                'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+                '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                '+', '/', '=',
+            ];
+
+            const rgbCodes = [
+                '#a9a9a9', '#7b68ee', '#2f4f4f', '#556b2f', '#8b4513', '#6b8e23', '#a52a2a',
+                '#228b22', '#191970', '#708090', '#483d8b', '#5f9ea0', '#3cb371', '#bc8f8f',
+                '#663399', '#b8860b', '#bdb76b', '#cd853f', '#4682b4', '#000080', '#d2691e',
+                '#9acd32', '#20b2aa', '#cd5c5c', '#32cd32', '#8fbc8f', '#8b008b', '#b03060',
+                '#d2b48c', '#66cdaa', '#9932cc', '#ff4500', '#ff8c00', '#ffd700', '#c71585',
+                '#0000cd', '#00ff00', '#ba55d3', '#00fa9a', '#4169e1', '#dc143c', '#00ffff',
+                '#00bfff', '#9370db', '#0000ff', '#a020f0', '#adff2f', '#ff6347', '#d8bfd8',
+                '#ff00ff', '#1e90ff', '#db7093', '#f0e68c', '#ffff54', '#dda0dd', '#87ceeb',
+                '#ff1493', '#ffa07a', '#afeeee', '#ee82ee', '#98fb98', '#7fffd4', '#ff69b4',
+                '#8b4789', '#ffb6c1'
+            ];
+
+            const colorMap = new Map();
+
+            for(let i=0; i<charSet.length; i++) {
+                colorMap.set(charSet[i], rgbCodes[i]);
+            }
+
+            async function waitForFrames(count) {
+                for(let i = 0; i < count; i++) {
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+                }
+            }
+
+            fileInput.addEventListener("change", async function(e) {
+                const file = fileInput.files[0];
+                const arrayBuffer = await file.arrayBuffer();
+                const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); 
+                const updateMe = document.getElementById("md5holder");
+                updateMe.innerText = "SHA256: " + hash;
+            });
+            
+            function go() {
+                const selectedFile = fileInput.files[0];
+                const reader = new FileReader();
+
+                reader.readAsDataURL(selectedFile);
+                reader.onload = async function() {
+
+                    const base64String = reader.result.replace('data:', '').replace(/^.+,/, '');
+                    let charPos = 0;
+                    while(charPos < base64String.length) {
+                        context.fillStyle = "#ffffff";
+                        context.fillRect(0, 0, COLUMN_COUNT * CELL_SIZE, ROW_COUNT * CELL_SIZE);
+                        var yPos = 0;
+                        for(let y=0; y<ROW_COUNT; y++) {
+                            var xPos = 0;
+                            for(let x=0; x<COLUMN_COUNT; x++) {
+                                const char = base64String.charAt(charPos);
+                                if(char === '') {
+                                    context.fillStyle = '#ffffff';
+                                } else {
+                                    context.fillStyle = colorMap.get(char);
+                                }
+                                context.fillRect(xPos, yPos, CELL_SIZE, CELL_SIZE);
+                                xPos += CELL_SIZE;
+                                charPos++;
+                            }
+                            yPos += CELL_SIZE; 
+                        }
+                        await waitForFrames(FRAMES_PER_GRID);
+                    }
+                    context.fillStyle = "#ffffff";
+                    context.fillRect(0, 0, COLUMN_COUNT * CELL_SIZE, ROW_COUNT * CELL_SIZE);
+                }
+
+            }
+
+
+        </script>
+    </body>
+</html>
