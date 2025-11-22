@@ -241,3 +241,11 @@ An extra file to test the tool with.
 ## Upcoming 
 
 An alternative version of this tool that encodes grids of QR codes to allow a higher data transfer rate will be released in the near future. 
+
+## Disclaimer
+
+This tool is provided for educational purposes, or for use by secuirty testers during their authorised engagements. Use of this tool in unauthorised environments, or to exfiltrate data without authorisation is strictly forbidden.
+
+I can accept no responsibility for unauthorised use of this tool. 
+
+This tool is provided without warranty or guarantee.
