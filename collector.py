@@ -1,15 +1,30 @@
 import tkinter as tk
 from tkinter import messagebox
 import mss
-import imageio
+import imageio.v2 as imageio
 import numpy as np
 from PIL import Image
 import time
 import argparse
 import sys
 
+MIN_REGION_WIDTH = 70
+MIN_REGION_HEIGHT = 45
+
+def set_dpi_awareness():
+    if sys.platform != "win32":
+        return
+
+    import ctypes
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except (AttributeError, OSError):
+        ctypes.windll.user32.SetProcessDPIAware()
+
 class ScreenSelector:
     def __init__(self):
+        set_dpi_awareness()
+
         self.root = tk.Tk()
         self.root.overrideredirect(True)
         self.root.attributes('-topmost', True)
@@ -35,16 +50,22 @@ class ScreenSelector:
     
         self.start_x = None
         self.start_y = None
+        self.start_root_x = None
+        self.start_root_y = None
         self.rect = None
         self.region = None
         
         self.canvas.bind("<ButtonPress-1>", self.on_press)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
+        self.root.bind("<Escape>", self.on_cancel)
+        self.root.focus_force()
     
     def on_press(self, event):
         self.start_x = event.x
         self.start_y = event.y
+        self.start_root_x = event.x_root
+        self.start_root_y = event.y_root
         
         self.rect = self.canvas.create_rectangle(
             self.start_x, self.start_y, 
@@ -61,14 +82,22 @@ class ScreenSelector:
                 event.x, event.y
             )
     
+    def on_cancel(self, event):
+        self.region = None
+        self.root.withdraw()
+        self.root.quit()
+
     def on_release(self, event):
-        end_x = event.x
-        end_y = event.y
+        if self.rect is None:
+            return
+
+        end_x = event.x_root
+        end_y = event.y_root
         
-        left = min(self.start_x, end_x)
-        top = min(self.start_y, end_y)
-        width = abs(end_x - self.start_x)
-        height = abs(end_y - self.start_y)
+        left = min(self.start_root_x, end_x)
+        top = min(self.start_root_y, end_y)
+        width = abs(end_x - self.start_root_x)
+        height = abs(end_y - self.start_root_y)
         
         self.region = {
             "top": top,
@@ -94,16 +123,18 @@ class ScreenRecorder:
         
     def record(self):
         
-        with mss.mss() as sct:
+        with mss.MSS() as sct:
             with imageio.get_writer(
                 self.output_file, 
+                format='FFMPEG',
                 fps=self.fps,
                 codec='libx264',
                 quality=10,
                 pixelformat='yuv444p',
-                macro_block_size=1
+                macro_block_size=1,
+                ffmpeg_params=['-preset', 'ultrafast']
             ) as writer:
-                start_time = time.time()
+                start_time = time.perf_counter()
                 frame_count = 0
                 
                 try:
@@ -113,14 +144,17 @@ class ScreenRecorder:
                         writer.append_data(np.array(frame))
                         
                         frame_count += 1
-                        elapsed = time.time() - start_time
+                        elapsed = time.perf_counter() - start_time
                         
                         expected_time = frame_count / self.fps
                         sleep_time = expected_time - elapsed
                         if sleep_time > 0:
                             time.sleep(sleep_time)
                 except KeyboardInterrupt:
+                    elapsed = time.perf_counter() - start_time
                     print("[*] Recording stopped")
+                    if elapsed > 0:
+                        print("[*] Recorded {} frames at an average of {:.1f} FPS".format(frame_count, frame_count / elapsed))
                     return
                 
 
@@ -157,6 +191,10 @@ def main():
     if selected_region is None:
         print('[-] Canceled selection')
         sys.exit(0)
+
+    if selected_region["width"] < MIN_REGION_WIDTH or selected_region["height"] < MIN_REGION_HEIGHT:
+        print("[-] Selected region is too small, it must be at least {}x{}".format(MIN_REGION_WIDTH, MIN_REGION_HEIGHT))
+        sys.exit(1)
 
     print("[+] Region selected")
     print("[+] Press enter to continue...")

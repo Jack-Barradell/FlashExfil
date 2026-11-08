@@ -1,0 +1,5 @@
+mss>=10.2
+imageio[ffmpeg]>=2.16
+numpy
+pillow
+pyautogui; sys_platform != "win32"

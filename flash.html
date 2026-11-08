@@ -1,12 +1,15 @@
+<!DOCTYPE html>
 <html>
     <head>
-
+        <meta charset="utf-8">
     </head>
     <body>
         <label for="file">Choose a file</label>
         <input type="file" id="file" name="file"/>
+        <label for="delay">Delay (ms)</label>
+        <input type="number" id="delay" name="delay" min="1" style="width:60px"/>
         <button id="go" onclick="go()" style="margin-right:20px">GO!</button>
-        <span id="md5holder">SHA256: </span>
+        <span id="shaholder">SHA256: </span>
         <br />
         <canvas id="grid" width="500" height="500" style="margin-top:10px;margin-left:5px"></canvas>
 
@@ -15,20 +18,28 @@
             const COLUMN_COUNT = 70;
             const ROW_COUNT = 45;
             const CELL_SIZE = 14;
-            const MS_DELAY = 45; 
-            const FRAMES_PER_GRID = 3;
+            const MS_DELAY = 50;
+            const MARKER_COLORS = ['#ff0000', '#00ff00', '#0000ff'];
 
             const fileInput = document.getElementById("file");
+            const delayInput = document.getElementById("delay");
             const goInput = document.getElementById("go");
             const canvas = document.getElementById("grid");
 
             canvas.width = COLUMN_COUNT * CELL_SIZE;
             canvas.height = ROW_COUNT * CELL_SIZE;
+            delayInput.value = MS_DELAY;
 
             const context = canvas.getContext("2d");
-            
-            context.rect(0, 0, COLUMN_COUNT * CELL_SIZE, ROW_COUNT * CELL_SIZE);
-            context.stroke();
+
+            function clearGrid() {
+                context.fillStyle = "#ffffff";
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.strokeStyle = "#000000";
+                context.strokeRect(0, 0, canvas.width, canvas.height);
+            }
+
+            clearGrid();
 
             const charSet = [
                 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
@@ -56,10 +67,11 @@
                 colorMap.set(charSet[i], rgbCodes[i]);
             }
 
-            async function waitForFrames(count) {
-                for(let i = 0; i < count; i++) {
+            async function waitFor(ms) {
+                const start = performance.now();
+                do {
                     await new Promise(resolve => requestAnimationFrame(resolve));
-                }
+                } while(performance.now() - start < ms);
             }
 
             fileInput.addEventListener("change", async function(e) {
@@ -67,43 +79,56 @@
                 const arrayBuffer = await file.arrayBuffer();
                 const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
                 const hashArray = Array.from(new Uint8Array(hashBuffer));
-                const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); 
-                const updateMe = document.getElementById("md5holder");
+                const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                const updateMe = document.getElementById("shaholder");
                 updateMe.innerText = "SHA256: " + hash;
             });
-            
+
             function go() {
                 const selectedFile = fileInput.files[0];
+                if(!selectedFile) {
+                    return;
+                }
+
+                const delay = parseInt(delayInput.value) || MS_DELAY;
                 const reader = new FileReader();
 
+                goInput.disabled = true;
                 reader.readAsDataURL(selectedFile);
                 reader.onload = async function() {
 
                     const base64String = reader.result.replace('data:', '').replace(/^.+,/, '');
                     let charPos = 0;
+                    let gridCount = 0;
                     while(charPos < base64String.length) {
-                        context.fillStyle = "#ffffff";
-                        context.fillRect(0, 0, COLUMN_COUNT * CELL_SIZE, ROW_COUNT * CELL_SIZE);
+                        const marker = MARKER_COLORS[gridCount % MARKER_COLORS.length];
                         var yPos = 0;
                         for(let y=0; y<ROW_COUNT; y++) {
                             var xPos = 0;
                             for(let x=0; x<COLUMN_COUNT; x++) {
-                                const char = base64String.charAt(charPos);
-                                if(char === '') {
-                                    context.fillStyle = '#ffffff';
+                                const firstCell = x === 0 && y === 0;
+                                const lastCell = x === COLUMN_COUNT - 1 && y === ROW_COUNT - 1;
+                                if(firstCell || lastCell) {
+                                    context.fillStyle = marker;
                                 } else {
-                                    context.fillStyle = colorMap.get(char);
+                                    const char = base64String.charAt(charPos);
+                                    if(char === '') {
+                                        context.fillStyle = '#ffffff';
+                                    } else {
+                                        context.fillStyle = colorMap.get(char);
+                                    }
+                                    charPos++;
                                 }
                                 context.fillRect(xPos, yPos, CELL_SIZE, CELL_SIZE);
                                 xPos += CELL_SIZE;
-                                charPos++;
                             }
-                            yPos += CELL_SIZE; 
+                            yPos += CELL_SIZE;
                         }
-                        await waitForFrames(FRAMES_PER_GRID);
+                        gridCount++;
+                        await waitFor(delay);
                     }
-                    context.fillStyle = "#ffffff";
-                    context.fillRect(0, 0, COLUMN_COUNT * CELL_SIZE, ROW_COUNT * CELL_SIZE);
+                    clearGrid();
+                    goInput.disabled = false;
                 }
 
             }
