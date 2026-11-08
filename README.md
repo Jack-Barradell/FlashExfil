@@ -233,7 +233,7 @@ This installs mss, imageio with its bundled ffmpeg, numpy, pillow and (on MacOS 
 ### MacOS
 
 - The terminal you run the scripts from needs Screen Recording permission for `collector.py` and Accessibility permission for `typer.py` (System Settings > Privacy & Security)
-- If you use Homebrew Python, install tkinter with `brew install python-tk`
+- If you use Homebrew Python, install the tkinter package matching your Python version, e.g. `brew install python-tk@3.14` for Python 3.14 (check with `python3 --version`)
 
 ### Linux
 
