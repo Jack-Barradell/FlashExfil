@@ -1,5 +1,7 @@
 # FlashExfil
 
+[Related Blog Post](https://thehackingblog.com/2026/11/08/flashexfil-data-exfiltration-on-remote-desktops/)
+
 ## Summary 
 
 ![Sample Grid](SampleGrid.png)
